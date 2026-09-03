@@ -214,7 +214,7 @@
    separada, "auditorias_projetos", sem misturar com as outras).
    Em branco = salva local no navegador de quem abre.
    ================================================================ */
-const firebaseConfig = { databaseURL: "" };  // ex.: https://seu-projeto-default-rtdb.firebaseio.com
+const firebaseConfig = { databaseURL: "https://auditoria-de-projetos-default-rtdb.firebaseio.com" };  // ex.: https://seu-projeto-default-rtdb.firebaseio.com
 const CLOUD = !!(firebaseConfig.databaseURL && window.firebase);
 let fdb=null; if(CLOUD){ try{ firebase.initializeApp(firebaseConfig); fdb=firebase.database(); }catch(e){ console.error(e); } }
 

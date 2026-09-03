@@ -171,7 +171,6 @@
       <div class="score-cap" id="scoreCap"></div>
     </div>
     <div class="meta">
-      <div class="field"><label>Auditor</label><input id="m-auditor" placeholder="Nome" /></div>
       <div class="field"><label>Contrato</label><div class="coord-wrap"><select id="m-contrato"></select><button class="coord-add" id="m-contratoadd" title="Adicionar contrato">+</button></div></div>
       <div class="field"><label>Nº Processo FAST</label><input id="m-proc" placeholder="Nº" /></div>
       <div class="field"><label>Data da Auditoria</label><input id="m-data" type="date" /></div>
@@ -195,7 +194,6 @@
   <div class="dlg-body"><div class="dlg-grid">
     <div class="field full"><label>Contrato</label><div class="coord-wrap"><select id="n-contrato"></select><button class="coord-add" id="n-contratoadd" title="Adicionar contrato">+</button></div></div>
     <div class="field"><label>Nº Processo FAST</label><input id="n-proc" placeholder="Nº" /></div>
-    <div class="field"><label>Auditor</label><input id="n-auditor" placeholder="Nome" /></div>
     <div class="field"><label>Data da auditoria</label><input id="n-data" type="date" /></div>
   </div><div class="dlg-actions"><button class="act" id="newCancel">Cancelar</button><button class="act primary" id="newCreate">Criar e abrir</button></div></div>
 </dialog>
@@ -387,13 +385,13 @@ function openAudit(id){
   $("#viewDash").classList.add("hidden"); $("#viewAudit").classList.remove("hidden"); window.scrollTo(0,0);
   $("#aTitle").textContent="Projetos — "+ref(a);
   $("#aSubtitle").textContent=`${a.meta.proc?("Proc. "+a.meta.proc+" · "):""}${a.meta.data?a.meta.data.split("-").reverse().join("/"):"sem data"}`;
-  $("#m-auditor").value=a.meta.auditor||""; $("#m-proc").value=a.meta.proc||""; $("#m-data").value=a.meta.data||"";
+  $("#m-proc").value=a.meta.proc||""; $("#m-data").value=a.meta.data||"";
   fillSelect($("#m-contrato"),store.contratos,a.meta.contrato);
   bindMeta(a); renderChips(a); renderDisc(a); paintAll();
 }
 function bindMeta(a){
   const set=(id,k,extra)=>{ const el=$(id); el.oninput=el.onchange=()=>{ a.meta[k]=el.value; scheduleSave(); if(extra)extra(); }; };
-  set("#m-auditor","auditor"); set("#m-proc","proc",()=>{$("#aTitle").textContent="Projetos — "+ref(a);}); set("#m-data","data");
+  set("#m-proc","proc",()=>{$("#aTitle").textContent="Projetos — "+ref(a);}); set("#m-data","data");
   set("#m-contrato","contrato",()=>{$("#aTitle").textContent="Projetos — "+ref(a);});
   $("#m-contratoadd").onclick=()=>addContrato($("#m-contrato"),v=>{a.meta.contrato=v;$("#aTitle").textContent="Projetos — "+ref(a);scheduleSave();});
 }
@@ -414,10 +412,12 @@ function renderDisc(a){
   const g=disc(activeDisc); const host=$("#critHost"); host.innerHTML="";
   const header=document.createElement("div"); header.className="disc-header";
   header.innerHTML=`<h2 style="width:100%">${g.nome}</h2>
+    <div class="disc-gestor field"><label>Auditor — ${g.nome}</label><input id="d-auditor" placeholder="Nome do auditor" value="${(a.auditores&&a.auditores[g.id])||""}"></div>
     <div class="disc-gestor field"><label>Coordenador — ${g.nome}</label><div class="coord-wrap"><select id="d-coord"></select><button class="coord-add" id="d-coordadd" type="button" title="Adicionar coordenador">+</button></div></div>
     <div class="disc-gestor field"><label>Gestor — ${g.nome}</label><input id="d-gestor" placeholder="Nome do gestor" value="${(a.gestores&&a.gestores[g.id])||""}"></div>
     <label class="na-toggle"><input type="checkbox" id="d-na" ${isNA(a,g.id)?"checked":""}> Disciplina não se aplica a este projeto</label>`;
   host.appendChild(header);
+  const aud=header.querySelector("#d-auditor"); aud.oninput=()=>{ if(!a.auditores)a.auditores={}; a.auditores[g.id]=aud.value; scheduleSave(); };
   const gest=header.querySelector("#d-gestor"); gest.oninput=()=>{ if(!a.gestores)a.gestores={}; a.gestores[g.id]=gest.value; scheduleSave(); };
   const coordSel=header.querySelector("#d-coord");
   function fillCoord(sel,val){ sel.innerHTML='<option value="">— coordenador —</option>'+store.coordenadores.map(c=>`<option>${c}</option>`).join(""); sel.value=val||""; }
@@ -479,22 +479,22 @@ function paintAll(){
 /* ================= EXPORT ================= */
 const esc=s=>`"${String(s==null?"":s).replace(/"/g,'""')}"`;
 function tabelaNotas(list){
-  let L=["TABELA DE NOTAS POR DISCIPLINA","Contrato;Nº Processo;Data;Disciplina;Coordenador;Gestor;Aplica;Nota Processo;Nota Produto;Nota Disciplina;Resultado;Status"];
+  let L=["TABELA DE NOTAS POR DISCIPLINA","Contrato;Nº Processo;Data;Disciplina;Auditor;Coordenador;Gestor;Aplica;Nota Processo;Nota Produto;Nota Disciplina;Resultado;Status"];
   list.forEach(a=>{ const st=STATUS_LABEL[statusOf(a)];
     GRUPOS.forEach(g=>{ const na=isNA(a,g.id); const np=discNotaSub(a,g,"Processo"),npr=discNotaSub(a,g,"Produto"),nd=discNota(a,g);
-      L.push([esc(a.meta.contrato),esc(a.meta.proc),esc(a.meta.data),esc(g.nome),esc((a.coordDisc&&a.coordDisc[g.id])||""),esc((a.gestores&&a.gestores[g.id])||""),na?"Não":"Sim",na?"":fmt(np),na?"":fmt(npr),na?"":fmt(nd),na?"":band(nd).label,st].join(";")); });
+      L.push([esc(a.meta.contrato),esc(a.meta.proc),esc(a.meta.data),esc(g.nome),esc((a.auditores&&a.auditores[g.id])||""),esc((a.coordDisc&&a.coordDisc[g.id])||""),esc((a.gestores&&a.gestores[g.id])||""),na?"Não":"Sim",na?"":fmt(np),na?"":fmt(npr),na?"":fmt(nd),na?"":band(nd).label,st].join(";")); });
     const mp=mediaSub(a,"Processo"),mpr=mediaSub(a,"Produto"),mg=notaGeral(a);
-    L.push([esc(a.meta.contrato),esc(a.meta.proc),"","MÉDIA PROCESSO","","","",fmt(mp),"","",band(mp).label,st].join(";"));
-    L.push([esc(a.meta.contrato),esc(a.meta.proc),"","MÉDIA PRODUTO","","","","",fmt(mpr),"",band(mpr).label,st].join(";"));
-    L.push([esc(a.meta.contrato),esc(a.meta.proc),"","MÉDIA DO PROJETO","","","","","",fmt(mg),band(mg).label,st].join(";"));
+    L.push([esc(a.meta.contrato),esc(a.meta.proc),"","MÉDIA PROCESSO","","","","",fmt(mp),"","",band(mp).label,st].join(";"));
+    L.push([esc(a.meta.contrato),esc(a.meta.proc),"","MÉDIA PRODUTO","","","","","",fmt(mpr),"",band(mpr).label,st].join(";"));
+    L.push([esc(a.meta.contrato),esc(a.meta.proc),"","MÉDIA DO PROJETO","","","","","","",fmt(mg),band(mg).label,st].join(";"));
   });
   return L;
 }
 function tabelaOfensores(list){
-  let L=["TABELA DE OFENSORES (não conformidades)","Contrato;Nº Processo;Disciplina;Coordenador;Gestor;Etapa;Critério;Verdito;Ofensor;Impacto;Desconto;Observação"]; let any=false;
+  let L=["TABELA DE OFENSORES (não conformidades)","Contrato;Nº Processo;Disciplina;Auditor;Coordenador;Gestor;Etapa;Critério;Verdito;Ofensor;Impacto;Desconto;Observação"]; let any=false;
   list.forEach(a=>{ GRUPOS.forEach(g=>{ if(isNA(a,g.id))return; g.crit.forEach(c=>{ const x=getCell(a,c.id);
     if(x.v==="nc"){ any=true; const o=(x.of!=null&&c.of[x.of])?c.of[x.of]:null;
-      L.push([esc(a.meta.contrato),esc(a.meta.proc),esc(g.nome),esc((a.coordDisc&&a.coordDisc[g.id])||""),esc((a.gestores&&a.gestores[g.id])||""),c.sub,esc(c.t),"Não conforme",esc(o?o.t:"(sem ofensor)"),o?IMPLABEL[o.i]:"",o?fmt(DISCOUNT[o.i]):"",esc(x.obs)].join(";")); }
+      L.push([esc(a.meta.contrato),esc(a.meta.proc),esc(g.nome),esc((a.auditores&&a.auditores[g.id])||""),esc((a.coordDisc&&a.coordDisc[g.id])||""),esc((a.gestores&&a.gestores[g.id])||""),c.sub,esc(c.t),"Não conforme",esc(o?o.t:"(sem ofensor)"),o?IMPLABEL[o.i]:"",o?fmt(DISCOUNT[o.i]):"",esc(x.obs)].join(";")); }
   }); }); });
   if(!any) L.push("(nenhuma não conformidade registrada)");
   return L;
@@ -509,12 +509,12 @@ async function init(){
   document.querySelectorAll(".stat").forEach(s=>s.onclick=()=>{ dashFilter=s.dataset.filter; renderDash(); });
   $("#btnRefresh").onclick=async()=>{ $("#btnRefresh").textContent="Atualizando…"; await loadStore(); renderDash(); $("#btnRefresh").textContent="↻ Atualizar"; };
   $("#btnBack").onclick=()=>{ $("#viewAudit").classList.add("hidden"); $("#viewDash").classList.remove("hidden"); renderDash(); };
-  $("#btnNew").onclick=()=>{ fillSelect($("#n-contrato"),store.contratos,store.contratos[0]); $("#n-proc").value=""; $("#n-auditor").value=""; $("#n-data").value=new Date().toISOString().slice(0,10); $("#newDlg").showModal(); };
+  $("#btnNew").onclick=()=>{ fillSelect($("#n-contrato"),store.contratos,store.contratos[0]); $("#n-proc").value=""; $("#n-data").value=new Date().toISOString().slice(0,10); $("#newDlg").showModal(); };
   $("#n-contratoadd").onclick=()=>addContrato($("#n-contrato"));
   $("#newClose").onclick=$("#newCancel").onclick=()=>$("#newDlg").close();
   $("#newCreate").onclick=()=>{ const id=uid();
-    store.audits[id]={id,createdAt:Date.now(),finalized:false,answers:{},gestores:{},coordDisc:{},na:{},meta:{
-      contrato:$("#n-contrato").value,proc:$("#n-proc").value.trim(),auditor:$("#n-auditor").value.trim(),data:$("#n-data").value}};
+    store.audits[id]={id,createdAt:Date.now(),finalized:false,answers:{},gestores:{},coordDisc:{},auditores:{},na:{},meta:{
+      contrato:$("#n-contrato").value,proc:$("#n-proc").value.trim(),data:$("#n-data").value}};
     $("#newDlg").close(); persistAudit(id); openAudit(id);
   };
   $("#btnFinalize").onclick=()=>{ const a=store.audits[currentId];

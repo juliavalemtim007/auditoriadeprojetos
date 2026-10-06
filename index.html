@@ -112,6 +112,8 @@
   .crit{padding:15px 0;border-bottom:1px solid var(--line);}
   .crit-row{display:flex;align-items:flex-start;gap:16px;justify-content:space-between;flex-wrap:wrap;}
   .crit-text{flex:1;min-width:0;} .crit-text .code{font-family:var(--font-title);font-size:11px;color:var(--muted-2);font-weight:600;margin-right:8px;} .crit-text .ct{font-size:14.5px;}
+  .crit-hint{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.4;background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:7px 10px;}
+  .crit-hint b{color:var(--text);font-weight:600;}
   .verdicts{display:flex;gap:6px;flex-shrink:0;}
   .vbtn{border:1px solid var(--line);background:#FFFFFF;color:var(--muted);border-radius:8px;padding:8px 13px;font-family:var(--font-title);font-size:12.5px;font-weight:500;cursor:pointer;transition:all .13s;white-space:nowrap;min-width:44px;}
   .vbtn:hover{border-color:var(--muted-2);color:var(--text);}
@@ -235,19 +237,42 @@ const DISCIPLINAS = [
   {id:"GAS", nome:"Gás"}, {id:"PPCI",nome:"PPCI"}, {id:"ARC", nome:"Ar Comprimido"}
 ];
 const gr=t=>({t,i:"grave"}), mo=t=>({t,i:"moderado"}), le=t=>({t,i:"leve"});
-/* Modelo de critérios, igual para todas as disciplinas (edite à vontade) */
-const CRITERIOS = [
-  {id:"P1", sub:"Processo", t:`Documento entregue na revisão vigente e com nomenclatura padronizada`, of:[gr(`Documento em revisão não vigente`),le(`Nomenclatura ou formato do arquivo fora do padrão`)]},
-  {id:"P2", sub:"Processo", t:`Entrega realizada dentro do prazo definido ou com justificativa válida`, of:[gr(`Atraso maior que 15 dias sem justificativa válida`),mo(`Atraso de até 15 dias sem justificativa válida`),le(`Atraso de até 7 dias sem justificativa válida`)]},
-  {id:"P3", sub:"Processo", t:`Estrutura, status e diário do processo refletem a real situação da entrega`, of:[gr(`Status incorreto ou fora da ordem cronológica`),mo(`Diário do processo desatualizado ou campo ISO/SGQ incorreto`)]},
-  {id:"P4", sub:"Processo", t:`Documentos obrigatórios da etapa presentes (ART, memorial, lista de pranchas)`, of:[gr(`Documento obrigatório da etapa não localizado no processo`),mo(`Memorial descritivo ou lista de pranchas incompleto`)]},
-  {id:"Q1", sub:"Produto", t:`Projeto representado conforme as normas técnicas da disciplina`, of:[gr(`Representação em desacordo com a norma vigente`),mo(`Falha de representação sem impacto normativo direto`)]},
-  {id:"Q2", sub:"Produto", t:`Compatibilização com as demais disciplinas verificada, sem conflitos (clashes)`, of:[gr(`Conflito de compatibilização não identificado/sinalizado`),mo(`Compatibilização realizada sem evidência de registro`)]},
-  {id:"Q3", sub:"Produto", t:`Quantitativos e especificações coerentes com o projeto`, of:[mo(`Quantitativos divergentes do projeto`),mo(`Especificação de material/equipamento ausente ou incoerente`)]},
-  {id:"Q4", sub:"Produto", t:`Pranchas completas e legíveis (cotas, escalas, legendas e níveis)`, of:[mo(`Cotas, escalas ou legendas ausentes ou ilegíveis`),le(`Falha de diagramação da prancha sem prejuízo técnico`)]}
+/* ----- Normas e foco de avaliação do critério Q1, por disciplina ----- */
+const Q1_DISC = {
+  ARQ: {norma:"NBR 9050, NBR 13531 e NBR 13532", aval:"rotas acessíveis, sanitário PCD, rampas e desníveis, e a representação conforme as normas de projeto"},
+  EST: {norma:"NBR 6118, NBR 8800 e NBR 6120", aval:"dimensionamento de concreto/aço, cargas adotadas e detalhamento conforme as normas"},
+  HVAC:{norma:"NBR 16401 e NBR 14679", aval:"carga térmica, vazões/renovação de ar e a representação de equipamentos e dutos"},
+  ELE: {norma:"NBR 5410 e NBR 5419", aval:"dimensionamento de circuitos, proteções, aterramento e SPDA"},
+  EEN: {norma:"NBR 5410, NBR 14039 e norma da concessionária", aval:"padrão de entrada, dimensionamento e conformidade com a concessionária local"},
+  HID: {norma:"NBR 5626 e NBR 8160", aval:"dimensionamento das redes, caimentos, ventilação e a representação"},
+  GAS: {norma:"NBR 15526", aval:"dimensionamento, materiais, ventilação e distâncias de segurança"},
+  PPCI:{norma:"NBR 13714, NBR 9077, NBR 17240 e IT do Corpo de Bombeiros", aval:"rotas de fuga, sistemas de combate e detecção e conformidade com as ITs aplicáveis"},
+  ARC: {norma:"NBR 12176 e boas práticas de ar comprimido", aval:"dimensionamento da rede, pontos de consumo, tratamento do ar e a representação"}
+};
+const Q1_OF=[le(`Falha de representação sem impacto normativo (simbologia/legenda)`),mo(`Desatendimento parcial da norma, sem risco técnico direto`),gr(`Desatendimento de norma com impacto técnico/segurança`)];
+
+/* ----- Critérios de PROCESSO (iguais para todas as disciplinas) ----- */
+const CRIT_PROC = [
+  {id:"P1", sub:"Processo", t:`Documento entregue na revisão vigente e com nomenclatura padronizada`, of:[le(`Nomenclatura ou formato do arquivo fora do padrão`),mo(`Documento sem carimbo/selo de revisão ou data de emissão`),gr(`Documento em revisão não vigente (versão superada em uso)`)]},
+  {id:"P2", sub:"Processo", t:`Entrega realizada dentro do prazo definido ou com justificativa válida`, of:[le(`Atraso de até 2 dias sem justificativa válida`),mo(`Atraso de 3 a 15 dias sem justificativa válida`),gr(`Atraso superior a 15 dias sem justificativa válida`)]},
+  {id:"P3", sub:"Processo", t:`Estrutura, status e diário do processo refletem a real situação da entrega`, of:[le(`Diário do processo desatualizado (registros em atraso)`),mo(`Campo ISO/SGQ não preenchido ou incoerente`),gr(`Status incorreto ou fora da ordem cronológica (mascara a real situação)`)]},
+  {id:"P4", sub:"Processo", t:`Documentos obrigatórios da etapa presentes (ART/RRT, memorial, lista de pranchas)`, of:[le(`Lista de pranchas desatualizada ou incompleta`),mo(`Memorial descritivo ausente ou incompleto`),gr(`ART/RRT não localizada no processo`)]}
 ];
-/* monta os blocos: cada disciplina recebe o conjunto de critérios com id próprio */
-const GRUPOS = DISCIPLINAS.map(d=>({ id:d.id, nome:d.nome, crit:CRITERIOS.map(c=>({...c, id:d.id+"-"+c.id})) }));
+/* ----- Critérios de PRODUTO após o Q1 (iguais para todas) ----- */
+const CRIT_PROD = [
+  {id:"Q2", sub:"Produto", t:`Compatibilização com as demais disciplinas (clashes)`,
+   hint:`<b>Verificar no ACC</b> se o conflito foi registrado como ISSUE e se foi resolvido/encerrado. Coordenadores/supervisores devem considerar: ISSUE criada? responsável e disciplina definidos? solução aplicada no projeto? ISSUE encerrada com evidência?`,
+   of:[gr(`Conflito de compatibilização não tratado`)]},
+  {id:"Q3", sub:"Produto", t:`Quantitativos e especificações coerentes com o projeto`, of:[le(`Pequena divergência de quantitativo sem impacto de custo/execução`),mo(`Especificação de material/equipamento ausente ou incoerente`),gr(`Quantitativos divergentes com impacto de custo/execução`)]},
+  {id:"Q4", sub:"Produto", t:`Pranchas completas e legíveis (cotas, escalas, legendas e níveis)`, of:[le(`Falha de diagramação sem prejuízo técnico`),mo(`Cotas, escalas ou legendas ausentes/ilegíveis`),gr(`Ausência de informação essencial à execução (nível, cota crítica, detalhe)`)]}
+];
+/* monta os blocos: cada disciplina = Processo + Q1 (específico da disciplina) + demais Produto */
+const GRUPOS = DISCIPLINAS.map(d=>{
+  const q=Q1_DISC[d.id]||{norma:"normas técnicas da disciplina",aval:"a representação conforme as normas"};
+  const Q1={id:"Q1", sub:"Produto", t:`Projeto representado conforme as normas técnicas da disciplina — ${q.norma}`, hint:`<b>O que avaliar:</b> ${q.aval}.`, of:Q1_OF};
+  const crit=[...CRIT_PROC, Q1, ...CRIT_PROD].map(c=>({...c, id:d.id+"-"+c.id}));
+  return { id:d.id, nome:d.nome, crit };
+});
 
 const DISCOUNT={grave:1.00,moderado:0.67,leve:0.33};
 const IMPLABEL={grave:"Grave",moderado:"Moderado",leve:"Leve"};
@@ -435,13 +460,13 @@ function renderDisc(a){
     const wrap=document.createElement("div"); wrap.className="crit";
     wrap.innerHTML=`
       <div class="crit-row">
-        <div class="crit-text"><span class="code">${c.id.split("-")[1]}</span><span class="ct">${c.t}</span></div>
+        <div class="crit-text"><span class="code">${c.id.split("-")[1]}</span><span class="ct">${c.t}</span>${c.hint?`<div class="crit-hint">${c.hint}</div>`:""}</div>
         <div class="verdicts" data-cid="${c.id}">
           <button class="vbtn" data-v="conforme">Conforme</button><button class="vbtn" data-v="na">N.A.</button><button class="vbtn" data-v="nc">Não conf.</button>
         </div>
         <div class="nc-extra">
           <select class="of-sel"><option value="">Selecione o ofensor…</option>${c.of.map((o,i)=>`<option value="${i}">${o.t} — ${IMPLABEL[o.i]} (−${fmt(DISCOUNT[o.i])})</option>`).join("")}</select>
-          <textarea class="of-obs" placeholder="Observação da não conformidade">${x.obs||""}</textarea>
+          <textarea class="of-obs" placeholder="${c.hint?('Observação — '+c.hint.replace(/<[^>]+>/g,'').replace(/"/g,'&quot;')):'Observação da não conformidade'}">${x.obs||""}</textarea>
         </div>
       </div>`;
     host.appendChild(wrap);
